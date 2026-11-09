@@ -35,6 +35,7 @@ import kotlinx.serialization.Serializable
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        AppDependencies.init(this)
         setContent {
             DogBreedsTheme { DogBreedsRoot() }
         }

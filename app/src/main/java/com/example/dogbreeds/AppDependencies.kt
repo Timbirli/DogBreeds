@@ -17,8 +17,6 @@ import java.util.concurrent.TimeUnit
 object AppDependencies {
 
     private const val BASE_URL = "https://api.thedogapi.com/v1/"
-
-    /** Необязательный бесплатный ключ с https://thedogapi.com — снимает лимиты. */
     private const val API_KEY = ""
 
     lateinit var repository: BreedRepository
