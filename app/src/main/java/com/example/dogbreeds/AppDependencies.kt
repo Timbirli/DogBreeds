@@ -17,7 +17,7 @@ import java.util.concurrent.TimeUnit
 object AppDependencies {
 
     private const val BASE_URL = "https://api.thedogapi.com/v1/"
-    private const val API_KEY = ""
+    private const val API_KEY = "live_sxwjZZSm8EqCK2nWxoYqEbAnWA6CNx0r2NhleqATKfxq1Ccrh79tm3ipzAlPtJaL"
 
     lateinit var repository: BreedRepository
         private set
