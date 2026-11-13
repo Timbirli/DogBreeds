@@ -4,21 +4,17 @@ package com.example.dogbreeds.domain
 class SortBreedsUseCase(
     private val parseLifeSpan: ParseLifeSpanUseCase = ParseLifeSpanUseCase()
 ) {
-    operator fun invoke(breeds: List<Breed>, order: SortOrder): List<Breed> {
-        if (order == SortOrder.NAME_ASC) {
-            return breeds.sortedBy { it.name.lowercase() }
-        }
-        if (order == SortOrder.NAME_DESC) {
-            return breeds.sortedByDescending { it.name.lowercase() }
-        }
-        // LIFESPAN_DESC
-        val withLifeSpan = breeds.filter { parseLifeSpan(it.lifeSpan) != null }
-            .sortedWith(
-                compareByDescending<Breed> { parseLifeSpan(it.lifeSpan) }
-                    .thenBy { it.name.lowercase() }
-            )
-        val withoutLifeSpan = breeds.filter { parseLifeSpan(it.lifeSpan) == null }
-            .sortedBy { it.name.lowercase() }
-        return withLifeSpan + withoutLifeSpan
+    operator fun invoke(breeds: List<Breed>, order: SortOrder): List<Breed> =
+        breeds.sortedWith(comparatorFor(order))
+
+    private fun comparatorFor(order: SortOrder): Comparator<Breed> = when (order) {
+        SortOrder.NAME_ASC -> byName
+        SortOrder.NAME_DESC -> byName.reversed()
+        // null (неизвестно) в естественном порядке меньше любого числа, поэтому при убывании оказывается в конце
+        SortOrder.LIFESPAN_DESC -> compareByDescending<Breed> { parseLifeSpan(it.lifeSpan) }.then(byName)
+    }
+
+    private companion object {
+        val byName: Comparator<Breed> = compareBy(String.CASE_INSENSITIVE_ORDER) { it.name }
     }
 }
