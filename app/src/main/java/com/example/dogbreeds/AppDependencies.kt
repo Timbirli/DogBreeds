@@ -2,7 +2,8 @@ package com.example.dogbreeds
 
 import android.content.Context
 import androidx.room.Room
-import com.example.dogbreeds.data.BreedRepository
+import com.example.dogbreeds.data.BreedRepositoryImpl
+import com.example.dogbreeds.domain.BreedRepository
 import com.example.dogbreeds.data.local.AppDatabase
 import com.example.dogbreeds.data.local.LocalDataSource
 import com.example.dogbreeds.data.remote.DogApi
@@ -17,7 +18,9 @@ import java.util.concurrent.TimeUnit
 object AppDependencies {
 
     private const val BASE_URL = "https://api.thedogapi.com/v1/"
-    private const val API_KEY = "live_sxwjZZSm8EqCK2nWxoYqEbAnWA6CNx0r2NhleqATKfxq1Ccrh79tm3ipzAlPtJaL"
+
+    /** Необязательный бесплатный ключ с https://thedogapi.com — снимает лимиты. */
+    private const val API_KEY = ""
 
     lateinit var repository: BreedRepository
         private set
@@ -51,7 +54,7 @@ object AppDependencies {
             .build()
             .create(DogApi::class.java)
 
-        repository = BreedRepository(
+        repository = BreedRepositoryImpl(
             remote = RemoteDataSource(api),
             local = LocalDataSource(database.breedDao())
         )

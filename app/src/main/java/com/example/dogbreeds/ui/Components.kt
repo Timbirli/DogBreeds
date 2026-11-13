@@ -37,7 +37,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.SubcomposeAsyncImage
 import coil.request.ImageRequest
-import com.example.dogbreeds.data.local.BreedEntity
+import com.example.dogbreeds.domain.Breed
 
 /** Картинка через Coil с индикатором загрузки и плейсхолдером при ошибке. */
 @Composable
@@ -89,7 +89,7 @@ fun FavoriteButton(isFavorite: Boolean, onClick: () -> Unit, modifier: Modifier 
 
 @Composable
 fun BreedCard(
-    breed: BreedEntity,
+    breed: Breed,
     onClick: () -> Unit,
     onToggleFavorite: () -> Unit,
     modifier: Modifier = Modifier

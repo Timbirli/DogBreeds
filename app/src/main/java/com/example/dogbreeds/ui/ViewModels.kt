@@ -3,8 +3,12 @@ package com.example.dogbreeds.ui
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import com.example.dogbreeds.data.BreedRepository
-import com.example.dogbreeds.data.local.BreedEntity
+import com.example.dogbreeds.domain.Breed
+import com.example.dogbreeds.domain.BreedRepository
+import com.example.dogbreeds.domain.RefreshBreedsUseCase
+import com.example.dogbreeds.domain.RefreshOutcome
+import com.example.dogbreeds.domain.SearchBreedsUseCase
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -19,19 +23,26 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import retrofit2.HttpException
-import java.io.IOException
 
 data class HomeUiState(
-    val breeds: List<BreedEntity> = emptyList(),
+    val breeds: List<Breed> = emptyList(),
     val totalCount: Int = 0,
     val isLoading: Boolean = true,      // первичная загрузка
     val isRefreshing: Boolean = false,  // pull-to-refresh
     val error: String? = null
 )
 
-/** Общая ViewModel для главного экрана и экрана избранного. */
-class BreedsViewModel(private val repository: BreedRepository) : ViewModel() {
+/**
+ * Общая ViewModel для главного экрана и экрана избранного.
+ * Зависимости (репозиторий, use case'ы, диспетчер) передаются через конструктор — это позволяет
+ * подставлять fake-реализации и тестовый диспетчер в тестах.
+ */
+class BreedsViewModel(
+    private val repository: BreedRepository,
+    private val searchBreeds: SearchBreedsUseCase = SearchBreedsUseCase(),
+    private val refreshBreeds: RefreshBreedsUseCase = RefreshBreedsUseCase(repository),
+    private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO
+) : ViewModel() {
 
     private data class Status(
         val isLoading: Boolean = true,
@@ -49,9 +60,8 @@ class BreedsViewModel(private val repository: BreedRepository) : ViewModel() {
 
     /** Список пород из Room, отфильтрованный по поисковому запросу. */
     val uiState: StateFlow<HomeUiState> = combine(repository.breeds, _query, _status) { all, query, status ->
-        val q = query.trim()
         HomeUiState(
-            breeds = if (q.isEmpty()) all else all.filter { it.name.contains(q, ignoreCase = true) },
+            breeds = searchBreeds(all, query),
             totalCount = all.size,
             isLoading = status.isLoading,
             isRefreshing = status.isRefreshing,
@@ -59,7 +69,7 @@ class BreedsViewModel(private val repository: BreedRepository) : ViewModel() {
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), HomeUiState())
 
-    val favorites: StateFlow<List<BreedEntity>> = repository.favorites
+    val favorites: StateFlow<List<Breed>> = repository.favorites
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     init {
@@ -71,54 +81,51 @@ class BreedsViewModel(private val repository: BreedRepository) : ViewModel() {
     }
 
     fun refresh(manual: Boolean = false) {
-        viewModelScope.launch(Dispatchers.IO) {
+        viewModelScope.launch(ioDispatcher) {
             _status.update { it.copy(isRefreshing = manual, error = null) }
-            val result = repository.refresh()
-            val failure = result.exceptionOrNull()
-            if (failure != null) {
-                val message = describe(failure)
-                if (repository.cachedCount() > 0) {
-                    _events.emit("$message Показаны сохранённые данные.")
+            when (val outcome = refreshBreeds()) {
+                RefreshOutcome.Success ->
+                    _status.update { it.copy(isLoading = false, isRefreshing = false, error = null) }
+
+                is RefreshOutcome.Failure -> {
+                    if (outcome.hasCachedData) {
+                        _events.emit("${outcome.message} Показаны сохранённые данные.")
+                    }
+                    _status.update {
+                        it.copy(isLoading = false, isRefreshing = false, error = outcome.message)
+                    }
                 }
-                _status.update { it.copy(isLoading = false, isRefreshing = false, error = message) }
-            } else {
-                _status.update { it.copy(isLoading = false, isRefreshing = false, error = null) }
             }
         }
     }
 
     fun toggleFavorite(id: Int) {
-        viewModelScope.launch(Dispatchers.IO) { repository.toggleFavorite(id) }
-    }
-
-    private fun describe(e: Throwable): String = when (e) {
-        is IOException -> "Нет подключения к интернету."
-        is HttpException -> "Ошибка сервера (${e.code()})."
-        else -> "Ошибка: ${e.message ?: "неизвестная"}."
+        viewModelScope.launch(ioDispatcher) { repository.toggleFavorite(id) }
     }
 }
 
 /** ViewModel экрана деталей конкретной породы. */
 class BreedDetailViewModel(
     private val repository: BreedRepository,
-    private val breedId: Int
+    private val breedId: Int,
+    private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO
 ) : ViewModel() {
 
-    val breed: StateFlow<BreedEntity?> = repository.observeBreed(breedId)
+    val breed: StateFlow<Breed?> = repository.observeBreed(breedId)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
     private val _images = MutableStateFlow<List<String>?>(null) // null = загрузка
     val images: StateFlow<List<String>?> = _images.asStateFlow()
 
     init {
-        viewModelScope.launch(Dispatchers.IO) {
+        viewModelScope.launch(ioDispatcher) {
             val b = repository.observeBreed(breedId).filterNotNull().first()
             _images.value = repository.getBreedImages(breedId, b.imageUrl)
         }
     }
 
     fun toggleFavorite() {
-        viewModelScope.launch(Dispatchers.IO) { repository.toggleFavorite(breedId) }
+        viewModelScope.launch(ioDispatcher) { repository.toggleFavorite(breedId) }
     }
 }
 

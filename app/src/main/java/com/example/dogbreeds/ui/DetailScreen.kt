@@ -37,6 +37,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -44,6 +45,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.example.dogbreeds.domain.ParseTemperamentUseCase
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
@@ -84,14 +86,14 @@ fun DetailScreen(viewModel: BreedDetailViewModel, onBack: () -> Unit) {
                     InfoRow("Происхождение", b.origin ?: "—")
                     InfoRow("Продолжительность жизни", b.lifeSpan.ifBlank { "—" })
 
-                    if (b.temperament.isNotBlank()) {
+                    val traits = remember(b.temperament) { ParseTemperamentUseCase()(b.temperament) }
+                    if (traits.isNotEmpty()) {
                         Text("Темперамент", style = MaterialTheme.typography.titleSmall)
                         FlowRow(
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
                             verticalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
-                            b.temperament.split(",").map { it.trim() }.filter { it.isNotEmpty() }
-                                .forEach { SuggestionChip(onClick = {}, label = { Text(it) }) }
+                            traits.forEach { SuggestionChip(onClick = {}, label = { Text(it) }) }
                         }
                     }
 

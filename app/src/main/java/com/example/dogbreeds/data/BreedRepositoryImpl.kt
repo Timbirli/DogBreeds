@@ -4,40 +4,50 @@ import com.example.dogbreeds.data.local.BreedEntity
 import com.example.dogbreeds.data.local.LocalDataSource
 import com.example.dogbreeds.data.remote.BreedDto
 import com.example.dogbreeds.data.remote.RemoteDataSource
+import com.example.dogbreeds.domain.Breed
+import com.example.dogbreeds.domain.BreedRepository
+import com.example.dogbreeds.domain.ResolveImageUrlUseCase
+import com.example.dogbreeds.domain.ServerException
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
+import retrofit2.HttpException
 
 /**
- * Единая точка доступа к данным.
+ * Реализация [BreedRepository] из domain-слоя.
  * Источник правды для UI — Room; сеть используется только для синхронизации кэша.
  */
-class BreedRepository(
+class BreedRepositoryImpl(
     private val remote: RemoteDataSource,
-    private val local: LocalDataSource
-) {
-    val breeds: Flow<List<BreedEntity>> = local.breeds
-    val favorites: Flow<List<BreedEntity>> = local.favorites
+    private val local: LocalDataSource,
+    private val resolveImageUrl: ResolveImageUrlUseCase = ResolveImageUrlUseCase()
+) : BreedRepository {
 
-    fun observeBreed(id: Int): Flow<BreedEntity?> = local.observeBreed(id)
+    override val breeds: Flow<List<Breed>> = local.breeds.map { list -> list.map { it.toDomain() } }
+    override val favorites: Flow<List<Breed>> = local.favorites.map { list -> list.map { it.toDomain() } }
 
-    suspend fun cachedCount(): Int = local.count()
+    override fun observeBreed(id: Int): Flow<Breed?> = local.observeBreed(id).map { it?.toDomain() }
 
-    suspend fun toggleFavorite(id: Int) = local.toggleFavorite(id)
+    override suspend fun cachedCount(): Int = local.count()
+
+    override suspend fun toggleFavorite(id: Int) = local.toggleFavorite(id)
 
     /** Загружает породы из сети и сохраняет в Room, сохраняя флаги «избранное». */
-    suspend fun refresh(): Result<Unit> = try {
+    override suspend fun refresh(): Result<Unit> = try {
         val dtos = remote.getBreeds()
         val favoriteIds = local.getFavoriteIds().toSet()
         local.upsertAll(dtos.map { it.toEntity(isFavorite = it.id in favoriteIds) })
         Result.success(Unit)
     } catch (e: CancellationException) {
         throw e
+    } catch (e: HttpException) {
+        Result.failure(ServerException(e.code()))
     } catch (e: Exception) {
         Result.failure(e)
     }
 
     /** Фото породы для галереи; при ошибке сети — только главное фото из кэша. */
-    suspend fun getBreedImages(id: Int, fallbackUrl: String): List<String> {
+    override suspend fun getBreedImages(id: Int, fallbackUrl: String): List<String> {
         val fallback = if (fallbackUrl.isBlank()) emptyList() else listOf(fallbackUrl)
         return try {
             remote.getBreedImages(id).mapNotNull { it.url }.distinct().ifEmpty { fallback }
@@ -55,9 +65,7 @@ class BreedRepository(
         origin = origin?.takeIf { it.isNotBlank() },
         lifeSpan = lifeSpan.orEmpty(),
         description = description?.takeIf { it.isNotBlank() },
-        imageUrl = image?.url
-            ?: referenceImageId?.let { "https://cdn2.thedogapi.com/images/$it.jpg" }
-            ?: "",
+        imageUrl = resolveImageUrl(image?.url, referenceImageId),
         isFavorite = isFavorite
     )
 }
