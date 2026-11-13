@@ -1,0 +1,28 @@
+"com.example.dogbreeds.domain.*"
+
+JUnit version 4.13.2
+.....E.E..E..............E.E..E
+Time: 0.068
+There were 6 failures:
+1) singleValue_returnsThatValue(com.example.dogbreeds.domain.ParseLifeSpanUseCaseTest)
+java.lang.NullPointerException
+	at com.example.dogbreeds.domain.ParseLifeSpanUseCaseTest.singleValue_returnsThatValue(ParseLifeSpanUseCaseTest.kt:18)
+2) rangeWithoutSpaces_andWithEnDash_isSupported(com.example.dogbreeds.domain.ParseLifeSpanUseCaseTest)
+java.lang.NullPointerException
+	at com.example.dogbreeds.domain.ParseLifeSpanUseCaseTest.rangeWithoutSpaces_andWithEnDash_isSupported(ParseLifeSpanUseCaseTest.kt:23)
+3) range_returnsAverage(com.example.dogbreeds.domain.ParseLifeSpanUseCaseTest)
+java.lang.NullPointerException
+	at com.example.dogbreeds.domain.ParseLifeSpanUseCaseTest.range_returnsAverage(ParseLifeSpanUseCaseTest.kt:13)
+4) lifespanDesc_putsLongerLivedFirst_andUnknownLast(com.example.dogbreeds.domain.SortBreedsUseCaseTest)
+java.lang.AssertionError: expected:<[B, D, A, C]> but was:<[A, B, C, D]>
+	at com.example.dogbreeds.domain.SortBreedsUseCaseTest.lifespanDesc_putsLongerLivedFirst_andUnknownLast(SortBreedsUseCaseTest.kt:36)
+5) nameAsc_ignoresCase(com.example.dogbreeds.domain.SortBreedsUseCaseTest)
+java.lang.AssertionError: expected:<[akita, Beagle, labrador]> but was:<[labrador, Beagle, akita]>
+	at com.example.dogbreeds.domain.SortBreedsUseCaseTest.nameAsc_ignoresCase(SortBreedsUseCaseTest.kt:17)
+6) lifespanDesc_withEqualLifespan_sortsByName(com.example.dogbreeds.domain.SortBreedsUseCaseTest)
+java.lang.AssertionError: expected:<[Alpha, Zeta]> but was:<[Zeta, Alpha]>
+	at com.example.dogbreeds.domain.SortBreedsUseCaseTest.lifespanDesc_withEqualLifespan_sortsByName(SortBreedsUseCaseTest.kt:46)
+
+FAILURES!!!
+Tests run: 25,  Failures: 6
+
