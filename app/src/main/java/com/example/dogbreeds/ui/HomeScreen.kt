@@ -40,7 +40,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
-@OptIn(ExperimentalMaterial3Api::class)
+/** Stateful-обёртка: подключает ViewModel (состояние + одноразовые события) к «глупому» [HomeContent]. */
 @Composable
 fun HomeScreen(
     viewModel: BreedsViewModel,
@@ -56,6 +56,33 @@ fun HomeScreen(
         viewModel.events.collect { snackbarHostState.showSnackbar(it) }
     }
 
+    HomeContent(
+        state = state,
+        query = query,
+        snackbarHostState = snackbarHostState,
+        onQueryChange = viewModel::onQueryChange,
+        onRefresh = { viewModel.refresh(manual = true) },
+        onRetry = { viewModel.refresh(manual = false) },
+        onBreedClick = onBreedClick,
+        onFavoritesClick = onFavoritesClick,
+        onToggleFavorite = viewModel::toggleFavorite
+    )
+}
+
+/** Stateless-экран: всё, что он показывает, приходит параметрами — его легко проверять UI-тестами. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun HomeContent(
+    state: HomeUiState,
+    query: String,
+    snackbarHostState: SnackbarHostState,
+    onQueryChange: (String) -> Unit,
+    onRefresh: () -> Unit,
+    onRetry: () -> Unit,
+    onBreedClick: (Int) -> Unit,
+    onFavoritesClick: () -> Unit,
+    onToggleFavorite: (Int) -> Unit
+) {
     Scaffold(
         topBar = {
             TopAppBar(
@@ -72,12 +99,12 @@ fun HomeScreen(
         Column(Modifier.fillMaxSize().padding(padding)) {
             OutlinedTextField(
                 value = query,
-                onValueChange = viewModel::onQueryChange,
+                onValueChange = onQueryChange,
                 placeholder = { Text("Поиск по названию породы") },
                 leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
                 trailingIcon = {
                     if (query.isNotEmpty()) {
-                        IconButton(onClick = { viewModel.onQueryChange("") }) {
+                        IconButton(onClick = { onQueryChange("") }) {
                             Icon(Icons.Default.Clear, contentDescription = "Очистить")
                         }
                     }
@@ -89,7 +116,7 @@ fun HomeScreen(
 
             PullToRefreshBox(
                 isRefreshing = state.isRefreshing,
-                onRefresh = { viewModel.refresh(manual = true) },
+                onRefresh = onRefresh,
                 modifier = Modifier.fillMaxSize()
             ) {
                 when {
@@ -102,12 +129,12 @@ fun HomeScreen(
                     state.error != null && state.totalCount == 0 -> ScrollableCenter {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             Text(
-                                state.error ?: "",
+                                state.error,
                                 style = MaterialTheme.typography.bodyLarge,
                                 textAlign = TextAlign.Center
                             )
                             Button(
-                                onClick = { viewModel.refresh(manual = false) },
+                                onClick = onRetry,
                                 modifier = Modifier.padding(top = 16.dp)
                             ) { Text("Повторить") }
                         }
@@ -133,7 +160,7 @@ fun HomeScreen(
                             BreedCard(
                                 breed = breed,
                                 onClick = { onBreedClick(breed.id) },
-                                onToggleFavorite = { viewModel.toggleFavorite(breed.id) },
+                                onToggleFavorite = { onToggleFavorite(breed.id) },
                                 modifier = Modifier.animateItem(
                                     fadeInSpec = tween(250),
                                     fadeOutSpec = tween(250)
